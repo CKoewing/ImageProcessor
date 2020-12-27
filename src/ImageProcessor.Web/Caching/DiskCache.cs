@@ -100,8 +100,7 @@ namespace ImageProcessor.Web.Caching
         {
             string configuredPath = this.Settings["VirtualCachePath"];
 
-            string virtualPath;
-            this.absoluteCachePath = GetValidatedAbsolutePath(configuredPath, out virtualPath);
+            this.absoluteCachePath = GetValidatedAbsolutePath(configuredPath, out string virtualPath);
             this.virtualCachePath = virtualPath;
         }
 
@@ -116,7 +115,7 @@ namespace ImageProcessor.Web.Caching
             // TODO: Before this check is performed it should be throttled. For example, only perform this check
             // if the last time it was checked is greater than 5 seconds. This would be much better for perf
             // if there is a high throughput of image requests.
-            string cachedFileName = await this.CreateCachedFileNameAsync();
+            string cachedFileName = await this.CreateCachedFileNameAsync().ConfigureAwait(false);
             this.CachedPath = CachedImageHelper.GetCachedPath(this.absoluteCachePath, cachedFileName, false, this.FolderDepth);
             this.virtualCachedFilePath = CachedImageHelper.GetCachedPath(this.virtualCachePath, cachedFileName, true, this.FolderDepth);
 
@@ -125,16 +124,17 @@ namespace ImageProcessor.Web.Caching
 
             if (cachedImage == null)
             {
-                if (File.Exists(this.CachedPath))
+                var info = new FileInfo(this.CachedPath);
+                if (info.Exists)
                 {
                     cachedImage = new CachedImage
                     {
                         Key = Path.GetFileNameWithoutExtension(this.CachedPath),
                         Path = this.CachedPath,
-                        CreationTimeUtc = File.GetCreationTimeUtc(this.CachedPath)
+                        CreationTimeUtc = info.LastWriteTimeUtc
                     };
 
-                    CacheIndexer.Add(cachedImage);
+                    CacheIndexer.Add(cachedImage, this.ImageCacheMaxMinutes);
                 }
             }
 
@@ -147,7 +147,7 @@ namespace ImageProcessor.Web.Caching
             {
                 // Check to see if the cached image is set to expire
                 // or a new file with the same name has replaced our current image
-                if (this.IsExpired(cachedImage.CreationTimeUtc) || await this.IsUpdatedAsync(cachedImage.CreationTimeUtc))
+                if (this.IsExpired(cachedImage.CreationTimeUtc) || await this.IsUpdatedAsync(cachedImage.CreationTimeUtc).ConfigureAwait(false))
                 {
                     CacheIndexer.Remove(this.CachedPath);
                     isUpdated = true;
@@ -173,15 +173,26 @@ namespace ImageProcessor.Web.Caching
         public override async Task AddImageToCacheAsync(Stream stream, string contentType)
         {
             // ReSharper disable once AssignNullToNotNullAttribute
-            DirectoryInfo directoryInfo = new DirectoryInfo(Path.GetDirectoryName(this.CachedPath));
+            var directoryInfo = new DirectoryInfo(Path.GetDirectoryName(this.CachedPath));
             if (!directoryInfo.Exists)
             {
                 directoryInfo.Create();
             }
 
-            using (FileStream fileStream = File.Create(this.CachedPath))
+            // This is a hack. I don't know why there would ever be double access to the file but there is
+            // and it's causing errors to be thrown.
+            // Ensure that an attempt at overwrite is still made, so cached images can be updated
+            // https://github.com/JimBobSquarePants/ImageProcessor/issues/629
+            try
             {
-                await stream.CopyToAsync(fileStream);
+                using (FileStream fileStream = File.Create(this.CachedPath, (int)stream.Length))
+                {
+                    await stream.CopyToAsync(fileStream).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                ImageProcessorBootstrapper.Instance.Logger.Log<DiskCache>($"Unable to write to file: {this.CachedPath}, {ex.Message}");
             }
         }
 
@@ -200,65 +211,66 @@ namespace ImageProcessor.Web.Caching
 
             this.ScheduleCacheTrimmer(token =>
             {
-                string rootDirectory = Path.GetDirectoryName(this.CachedPath);
-
+                var rootDirectory = Path.GetDirectoryName(this.CachedPath);
                 if (rootDirectory != null)
                 {
-                    // Jump up to the parent branch to clean through the cache.
-                    // UNC folders can throw exceptions if the file doesn't exist.
-                    IEnumerable<string> directories = SafeEnumerateDirectories(validatedAbsoluteCachePath).Reverse();
-
+                    // Jump up to the parent branch to clean through the cache
+                    // UNC folders can throw exceptions if the file doesn't exist
+                    var directories = SafeEnumerateDirectories(validatedAbsoluteCachePath).Reverse().ToList();
                     foreach (string directory in directories)
                     {
-                        if (!Directory.Exists(directory))
-                        {
-                            continue;
-                        }
-
                         if (token.IsCancellationRequested)
                         {
                             break;
                         }
 
-                        IEnumerable<FileInfo> files = Directory.EnumerateFiles(directory)
-                                                               .Select(f => new FileInfo(f))
-                                                               .OrderBy(f => f.CreationTimeUtc);
-                        int count = files.Count();
-
-                        foreach (FileInfo fileInfo in files)
+                        try
                         {
-                            if (token.IsCancellationRequested)
+                            var files = Directory.EnumerateFiles(directory).Select(f => new FileInfo(f)).OrderBy(f => f.CreationTimeUtc).ToList();
+                            var count = files.Count;
+                            foreach (var fileInfo in files)
                             {
-                                break;
-                            }
-
-                            try
-                            {
-                                // If the group count is equal to the max count minus 1 then we know we
-                                // have reduced the number of items below the maximum allowed.
-                                // We'll cleanup any orphaned expired files though.
-                                if (!this.IsExpired(fileInfo.CreationTimeUtc) && count <= MaxFilesCount - 1)
+                                if (token.IsCancellationRequested)
                                 {
                                     break;
                                 }
 
-                                // Remove from the cache and delete each CachedImage.
-                                CacheIndexer.Remove(fileInfo.Name);
-                                fileInfo.Delete();
-                                count -= 1;
+                                try
+                                {
+                                    // If the group count is equal to the max count minus 1 then we know we have reduced the number of items below the maximum allowed
+                                    // We'll cleanup any orphaned expired files though
+                                    if (!this.IsExpired(fileInfo.CreationTimeUtc) && count <= MaxFilesCount - 1)
+                                    {
+                                        break;
+                                    }
+
+                                    // Remove from the cache and delete each CachedImage
+                                    CacheIndexer.Remove(fileInfo.Name);
+                                    fileInfo.Delete();
+                                    count--;
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Log it but skip to the next file
+                                    ImageProcessorBootstrapper.Instance.Logger.Log<DiskCache>($"Unable to clean cached file: {fileInfo.FullName}, {ex.Message}");
+                                }
                             }
 
-                            catch (Exception ex)
+                            // If the directory is empty, delete it to remove the FCN
+                            if (count == 0
+                                && Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly).Length == 0)
                             {
-                                // Log it but skip to the next file.
-                                ImageProcessorBootstrapper.Instance.Logger.Log<DiskCache>($"Unable to clean cached file: {fileInfo.FullName}, {ex.Message}");
+                                Directory.Delete(directory);
                             }
                         }
-
-                        // If the directory is empty of files delete it to remove the FCN.
-                        this.RecursivelyDeleteEmptyDirectories(directory, validatedAbsoluteCachePath, token);
+                        catch (Exception ex)
+                        {
+                            // Log it but skip to the next directory
+                            ImageProcessorBootstrapper.Instance.Logger.Log<DiskCache>($"Unable to clean cached directory: {directory}, {ex.Message}");
+                        }
                     }
                 }
+
                 return Task.FromResult(0);
             });
 
@@ -320,7 +332,7 @@ namespace ImageProcessor.Web.Caching
                     // Since we are going to call Response.End(), we need to go ahead and set the headers
                     HttpModules.ImageProcessingModule.SetHeaders(context, this.BrowserMaxDays);
                     this.SetETagHeader(context);
-                    var length = new FileInfo(this.CachedPath).Length;
+                    long length = new FileInfo(this.CachedPath).Length;
                     context.Response.AddHeader("Content-Length", length.ToString());
 
                     context.Response.TransmitFile(this.CachedPath, 0, length);
@@ -343,6 +355,46 @@ namespace ImageProcessor.Web.Caching
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Returns a value indicating whether the requested image has been updated.
+        /// </summary>
+        /// <param name="creationDate">The creation date.</param>
+        /// <returns>The <see cref="bool"/></returns>
+        protected virtual async Task<bool> IsUpdatedAsync(DateTime creationDate)
+        {
+            bool isUpdated = false;
+
+            try
+            {
+                if (new Uri(this.RequestPath).IsFile)
+                {
+                    var info = new FileInfo(this.RequestPath);
+                    if (info.Exists)
+                    {
+                        // If it's newer than the cached file then it must be an update.
+                        isUpdated = info.LastWriteTimeUtc > creationDate;
+                    }
+                }
+                else
+                {
+                    // Try and get the headers for the file, this should allow cache busting for remote files.
+                    var request = (HttpWebRequest)WebRequest.Create(this.RequestPath);
+                    request.Method = "HEAD";
+
+                    using (var response = (HttpWebResponse)await request.GetResponseAsync().ConfigureAwait(false))
+                    {
+                        isUpdated = response.LastModified.ToUniversalTime() > creationDate;
+                    }
+                }
+            }
+            catch
+            {
+                isUpdated = false;
+            }
+
+            return isUpdated;
         }
 
         /// <summary>
@@ -447,12 +499,11 @@ namespace ImageProcessor.Web.Caching
                         };
                     }
 
-                    string virtualCacheFolderPath;
                     string result = GetValidatedCachePathsImpl(
                         originalPath,
                         mapPath,
                         s => new DirectoryInfo(s),
-                        out virtualCacheFolderPath);
+                        out string virtualCacheFolderPath);
 
                     validatedVirtualCachePath = virtualCacheFolderPath;
                     return result;
@@ -508,81 +559,6 @@ namespace ImageProcessor.Web.Caching
         }
 
         /// <summary>
-        /// Returns a value indicating whether the requested image has been updated.
-        /// </summary>
-        /// <param name="creationDate">The creation date.</param>
-        /// <returns>The <see cref="bool"/></returns>
-        private async Task<bool> IsUpdatedAsync(DateTime creationDate)
-        {
-            bool isUpdated = false;
-
-            try
-            {
-                if (new Uri(this.RequestPath).IsFile)
-                {
-                    if (File.Exists(this.RequestPath))
-                    {
-                        // If it's newer than the cached file then it must be an update.
-                        isUpdated = File.GetLastWriteTimeUtc(this.RequestPath) > creationDate;
-                    }
-                }
-                else
-                {
-                    // Try and get the headers for the file, this should allow cache busting for remote files.
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(this.RequestPath);
-                    request.Method = "HEAD";
-
-                    using (HttpWebResponse response = (HttpWebResponse)await request.GetResponseAsync())
-                    {
-                        isUpdated = response.LastModified.ToUniversalTime() > creationDate;
-                    }
-                }
-            }
-            catch
-            {
-                isUpdated = false;
-            }
-
-            return isUpdated;
-        }
-
-        /// <summary>
-        /// Recursively delete the directories in the folder.
-        /// </summary>
-        /// <param name="directory">The current directory.</param>
-        /// <param name="root">The root path.</param>
-        /// <param name="token">The cancellation token.</param>
-        private void RecursivelyDeleteEmptyDirectories(string directory, string root, CancellationToken token)
-        {
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-
-            try
-            {
-                if (directory == root)
-                {
-                    return;
-                }
-
-                // If the directory is empty of files delete it to remove the FCN.
-                if (!Directory.GetFiles(directory, "*", SearchOption.TopDirectoryOnly).Any() && !Directory.GetDirectories(directory, "*", SearchOption.TopDirectoryOnly).Any())
-                {
-                    Directory.Delete(directory);
-                }
-
-                this.RecursivelyDeleteEmptyDirectories(Directory.GetParent(directory).FullName, root, token);
-            }
-            catch (Exception ex)
-            {
-                // Log it but skip to the next directory.
-                ImageProcessorBootstrapper.Instance.Logger.Log<DiskCache>($"Unable to clean cached directory: {directory}, {ex.Message}");
-
-            }
-        }
-
-        /// <summary>
         /// Sets the ETag Header
         /// </summary>
         /// <param name="context"></param>
@@ -604,8 +580,7 @@ namespace ImageProcessor.Web.Caching
             if (this.cachedImageCreationTimeUtc != DateTime.MinValue)
             {
                 long lastModFileTime = this.cachedImageCreationTimeUtc.ToFileTime();
-                DateTime utcNow = DateTime.UtcNow;
-                long nowFileTime = utcNow.ToFileTime();
+                long nowFileTime = DateTime.UtcNow.ToFileTime();
                 string hexFileTime = lastModFileTime.ToString("X8", System.Globalization.CultureInfo.InvariantCulture);
                 if ((nowFileTime - lastModFileTime) <= 30000000)
                 {
@@ -614,6 +589,7 @@ namespace ImageProcessor.Web.Caching
 
                 return "\"" + hexFileTime + "\"";
             }
+
             return null;
         }
     }

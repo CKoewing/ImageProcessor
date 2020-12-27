@@ -45,6 +45,27 @@ namespace ImageProcessor.Web.UnitTests
         }
 
         /// <summary>
+        /// The gamma regex unit test.
+        /// </summary>
+        /// <param name="input">The input string.</param>
+        /// <param name="expected">The expected result.</param>
+        [Test]
+        [TestCase("gamma=0", 0F)]
+        [TestCase("gamma=270", 270F)]
+        [TestCase("gamma=-270", -270F)]
+        [TestCase("gamma=28", 28F)]
+        [TestCase("gamma=28.7", 28.7F)]
+        public void TestGammaRegex(string input, float expected)
+        {
+            Processors.Gamma rotate = new Processors.Gamma();
+            rotate.MatchRegexIndex(input);
+
+            float result = rotate.Processor.DynamicParameter;
+
+            Assert.AreEqual(expected, result);
+        }
+
+        /// <summary>
         /// The contrast regex unit test.
         /// </summary>
         /// <param name="input">The input string.</param>
@@ -252,30 +273,18 @@ namespace ImageProcessor.Web.UnitTests
         {
             Dictionary<string, ResizeLayer> data = new Dictionary<string, ResizeLayer>
             {
-                {
-                    "width=300", new ResizeLayer(new Size(300, 0))
-                },
-                {
-                    "height=300", new ResizeLayer(new Size(0, 300))
-                },
-                {
-                    "height=300.6", new ResizeLayer(new Size(0, 301))
-                },
-                {
-                    "height=300&mode=crop", new ResizeLayer(new Size(0, 300), ResizeMode.Crop)
-                },
-                {
-                    "width=300&mode=crop", new ResizeLayer(new Size(300, 0), ResizeMode.Crop)
-                },
-                {
-                    "width=300.2&mode=crop", new ResizeLayer(new Size(300, 0), ResizeMode.Crop)
-                },
-                {
-                    "width=600&heightratio=0.416", new ResizeLayer(new Size(600, 250))
-                },
-                {
-                    "width=600&height=250&mode=max", new ResizeLayer(new Size(600, 250), ResizeMode.Max)
-                }
+                { "width=300", new ResizeLayer(new Size(300, 0)) },
+                { "height=300", new ResizeLayer(new Size(0, 300)) },
+                { "height=300.6", new ResizeLayer(new Size(0, 301)) }, // Round size units
+                { "height=300&mode=crop", new ResizeLayer(new Size(0, 300), ResizeMode.Crop) },
+                { "width=300&mode=crop", new ResizeLayer(new Size(300, 0), ResizeMode.Crop) },
+                { "width=300.2&mode=crop", new ResizeLayer(new Size(300, 0), ResizeMode.Crop) }, // Round size units
+                { "width=600&heightratio=0.416", new ResizeLayer(new Size(600, 250)) },
+                { "width=600&height=250&mode=max", new ResizeLayer(new Size(600, 250), ResizeMode.Max) },
+                { "width=600&height=250&center=1,0.5", new ResizeLayer(new Size(600, 250), centerCoordinates: new [] { 1f, 0.5f }) }, // Center coordinates (Y,X)
+                { "width=600&height=250&center=0.5,0.25", new ResizeLayer(new Size(600, 250)) { Center = new PointF(0.25f, 0.5f) } }, // Center coordinates (Y,X) to PointF
+                { "width=600&height=250&center=0.5", new ResizeLayer(new Size(600, 250)) }, // Invalid center coordinates should not result in 0,0
+                { "width=600&height=250&center=y,x", new ResizeLayer(new Size(600, 250)) } // Invalid center coordinates should not result in 0,0
             };
 
             Processors.Resize resize = new Processors.Resize();

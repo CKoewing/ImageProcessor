@@ -17,11 +17,7 @@ namespace ImageProcessor.PlayGround
     using System.Drawing;
     using System.IO;
     using System.Linq;
-
-    using ImageProcessor;
     using ImageProcessor.Imaging;
-    using ImageProcessor.Imaging.Filters.EdgeDetection;
-    using ImageProcessor.Imaging.Formats;
 
     /// <summary>
     /// The program.
@@ -67,12 +63,13 @@ namespace ImageProcessor.PlayGround
                     stopwatch.Start();
 
                     using (MemoryStream inStream = new MemoryStream(photoBytes))
-                    using (ImageFactory imageFactory = new ImageFactory() { AnimationProcessMode = AnimationProcessMode.All })
+                    using (ImageFactory imageFactory = new ImageFactory(MetaDataMode.CopyrightAndGeolocation) { AnimationProcessMode = AnimationProcessMode.All })
                     {
                         try
                         {
                             imageFactory.Load(inStream)
-                                        .Crop(new Rectangle(0, 0, imageFactory.Image.Width / 2, imageFactory.Image.Height / 2))
+                                        .Resize(new Size(426, 0))
+                                        //.Crop(new Rectangle(0, 0, imageFactory.Image.Width / 2, imageFactory.Image.Height / 2))
                                         .Save(Path.GetFullPath(Path.Combine(outPath, fileInfo.Name)));
                         }
                         catch (Exception ex)

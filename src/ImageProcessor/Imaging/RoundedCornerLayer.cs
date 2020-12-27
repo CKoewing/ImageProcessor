@@ -10,10 +10,12 @@
 
 namespace ImageProcessor.Imaging
 {
+    using System;
+
     /// <summary>
     /// Encapsulates the properties required to add rounded corners to an image.
     /// </summary>
-    public class RoundedCornerLayer
+    public class RoundedCornerLayer : IEquatable<RoundedCornerLayer>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="RoundedCornerLayer"/> class.
@@ -42,7 +44,6 @@ namespace ImageProcessor.Imaging
             this.BottomRight = bottomRight;
         }
 
-        #region Properties
         /// <summary>
         /// Gets or sets the radius of the corners.
         /// </summary>
@@ -67,51 +68,36 @@ namespace ImageProcessor.Imaging
         /// Gets or sets a value indicating whether bottom right corners are to be added.
         /// </summary>
         public bool BottomRight { get; set; }
-        #endregion
 
         /// <summary>
-        /// Returns a value that indicates whether the specified object is an 
-        /// <see cref="RoundedCornerLayer"/> object that is equivalent to 
-        /// this <see cref="RoundedCornerLayer"/> object.
+        /// Determines whether the specified <see cref="System.Object" />, is equal to this instance.
         /// </summary>
-        /// <param name="obj">
-        /// The object to test.
-        /// </param>
+        /// <param name="obj">The <see cref="System.Object" /> to compare with this instance.</param>
         /// <returns>
-        /// True if the given object is an <see cref="RoundedCornerLayer"/> object that is equivalent to 
-        /// this <see cref="RoundedCornerLayer"/> object; otherwise, false.
+        ///   <c>true</c> if the specified <see cref="System.Object" /> is equal to this instance; otherwise, <c>false</c>.
         /// </returns>
-        public override bool Equals(object obj)
-        {
-            RoundedCornerLayer rounded = obj as RoundedCornerLayer;
-
-            if (rounded == null)
-            {
-                return false;
-            }
-
-            return this.Radius == rounded.Radius
-                   && this.TopLeft == rounded.TopLeft && this.TopRight == rounded.TopRight
-                   && this.BottomLeft == rounded.BottomLeft && this.BottomRight == rounded.BottomRight;
-        }
+        public override bool Equals(object obj) => obj is RoundedCornerLayer roundedCornerLayer && this.Equals(roundedCornerLayer);
 
         /// <summary>
-        /// Returns the hash code for this instance.
+        /// Indicates whether the current object is equal to another object of the same type.
+        /// </summary>
+        /// <param name="other">An object to compare with this object.</param>
+        /// <returns>
+        /// true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.
+        /// </returns>
+        public bool Equals(RoundedCornerLayer other) => other != null
+            && this.Radius == other.Radius
+            && this.TopLeft == other.TopLeft
+            && this.TopRight == other.TopRight
+            && this.BottomLeft == other.BottomLeft
+            && this.BottomRight == other.BottomRight;
+
+        /// <summary>
+        /// Returns a hash code for this instance.
         /// </summary>
         /// <returns>
-        /// A 32-bit signed integer that is the hash code for this instance.
+        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table.
         /// </returns>
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hashCode = this.Radius;
-                hashCode = (hashCode * 397) ^ this.TopLeft.GetHashCode();
-                hashCode = (hashCode * 397) ^ this.TopRight.GetHashCode();
-                hashCode = (hashCode * 397) ^ this.BottomLeft.GetHashCode();
-                hashCode = (hashCode * 397) ^ this.BottomRight.GetHashCode();
-                return hashCode;
-            }
-        }
+        public override int GetHashCode() => (this.Radius, this.TopLeft, this.TopRight, this.BottomLeft, this.BottomRight).GetHashCode();
     }
 }

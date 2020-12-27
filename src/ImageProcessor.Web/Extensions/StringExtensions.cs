@@ -22,7 +22,16 @@ namespace ImageProcessor.Web.Extensions
     /// </summary>
     public static class StringExtensions
     {
-        #region Cryptography
+        /// <summary>
+        /// The regular expression to search strings for an array of positive floats.
+        /// </summary>
+        private static readonly Regex PositiveFloatArrayRegex = new Regex(@"[\d+\.]+(?=[,-])|[\d+\.]+(?![,-])", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
+
+        /// <summary>
+        /// The regular expression to search strings for an array of positive integers.
+        /// </summary>
+        private static readonly Regex PositiveIntegerArrayRegex = new Regex(@"[\d+]+(?=[,-])|[\d+]+(?![,-])", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture);
+
         /// <summary>
         /// Creates an MD5 fingerprint of the String.
         /// </summary>
@@ -32,15 +41,15 @@ namespace ImageProcessor.Web.Extensions
         {
             byte[] bytes = Encoding.Unicode.GetBytes(expression.ToCharArray());
 
-            using (MD5CryptoServiceProvider md5 = new MD5CryptoServiceProvider())
+            using (var md5 = new MD5CryptoServiceProvider())
             {
                 byte[] hash = md5.ComputeHash(bytes);
 
                 // Concatenate the hash bytes into one long String.
                 return hash.Aggregate(
                     new StringBuilder(32),
-                    (sb, b) => sb.Append(b.ToString("X2", CultureInfo.InvariantCulture)))
-                    .ToString().ToLowerInvariant();
+                    (sb, b) => sb.Append(b.ToString("x2", CultureInfo.InvariantCulture)))
+                    .ToString();
             }
         }
 
@@ -53,20 +62,18 @@ namespace ImageProcessor.Web.Extensions
         {
             byte[] bytes = Encoding.ASCII.GetBytes(expression.ToCharArray());
 
-            using (SHA1CryptoServiceProvider sha1 = new SHA1CryptoServiceProvider())
+            using (var sha1 = new SHA1CryptoServiceProvider())
             {
                 byte[] hash = sha1.ComputeHash(bytes);
 
                 // Concatenate the hash bytes into one long String.
                 return hash.Aggregate(
                     new StringBuilder(40),
-                    (sb, b) => sb.Append(b.ToString("X2", CultureInfo.InvariantCulture)))
-                    .ToString().ToLowerInvariant();
+                    (sb, b) => sb.Append(b.ToString("x2", CultureInfo.InvariantCulture)))
+                    .ToString();
             }
         }
-        #endregion
 
-        #region Numbers
         /// <summary>
         /// Creates an array of integers scraped from the String.
         /// </summary>
@@ -79,9 +86,7 @@ namespace ImageProcessor.Web.Extensions
                 throw new ArgumentNullException(nameof(expression));
             }
 
-            Regex regex = new Regex(@"[\d+]+(?=[,-])|[\d+]+(?![,-])", RegexOptions.Compiled);
-
-            MatchCollection matchCollection = regex.Matches(expression);
+            var matchCollection = PositiveIntegerArrayRegex.Matches(expression);
 
             // Get the collections.
             int count = matchCollection.Count;
@@ -108,9 +113,7 @@ namespace ImageProcessor.Web.Extensions
                 throw new ArgumentNullException(nameof(expression));
             }
 
-            Regex regex = new Regex(@"[\d+\.]+(?=[,-])|[\d+\.]+(?![,-])", RegexOptions.Compiled);
-
-            MatchCollection matchCollection = regex.Matches(expression);
+            var matchCollection = PositiveFloatArrayRegex.Matches(expression);
 
             // Get the collections.
             int count = matchCollection.Count;
@@ -124,21 +127,13 @@ namespace ImageProcessor.Web.Extensions
 
             return matches;
         }
-        #endregion
 
-        #region Files and Paths
         /// <summary>
         /// Checks the string to see whether the value is a valid virtual path name.
         /// </summary>
         /// <param name="expression">The <see cref="T:System.String">String</see> instance that this method extends.</param>
         /// <returns>True if the given string is a valid virtual path name</returns>
-        public static bool IsValidVirtualPathName(this string expression)
-        {
-            Uri uri;
-
-            return Uri.TryCreate(expression, UriKind.Relative, out uri) && uri.IsWellFormedOriginalString();
-        }
-        #endregion
+        public static bool IsValidVirtualPathName(this string expression) => Uri.TryCreate(expression, UriKind.Relative, out Uri uri) && uri.IsWellFormedOriginalString();
 
         /// <summary>
         /// Trims a specified string from the start of another string.

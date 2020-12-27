@@ -23,15 +23,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"autorotate=true", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex("autorotate=true", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="AutoRotate"/> class.
         /// </summary>
-        public AutoRotate()
-        {
-            this.Processor = new ImageProcessor.Processors.AutoRotate();
-        }
+        public AutoRotate() => this.Processor = new ImageProcessor.Processors.AutoRotate();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -41,11 +38,7 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// Gets the order in which this processor is to be used in a chain.
         /// </summary>
-        public int SortOrder
-        {
-            get;
-            private set;
-        }
+        public int SortOrder { get; private set; }
 
         /// <summary>
         /// Gets the associated graphics processor.
@@ -64,8 +57,8 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;

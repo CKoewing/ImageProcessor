@@ -26,15 +26,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"roundedcorners=\d+", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex(@"roundedcorners=\d+", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RoundedCorners"/> class.
         /// </summary>
-        public RoundedCorners()
-        {
-            this.Processor = new ImageProcessor.Processors.RoundedCorners();
-        }
+        public RoundedCorners() => this.Processor = new ImageProcessor.Processors.RoundedCorners();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -61,21 +58,19 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;
                 NameValueCollection queryCollection = HttpUtility.ParseQueryString(queryString);
 
-                RoundedCornerLayer roundedCornerLayer = new RoundedCornerLayer(
+                this.Processor.DynamicParameter = new RoundedCornerLayer(
                     QueryParamParser.Instance.ParseValue<int>(queryCollection["roundedcorners"]),
                     this.ParseCorner(queryCollection, "tl"),
                     this.ParseCorner(queryCollection, "tr"),
                     this.ParseCorner(queryCollection, "bl"),
                     this.ParseCorner(queryCollection, "br"));
-
-                this.Processor.DynamicParameter = roundedCornerLayer;
             }
 
             return this.SortOrder;
@@ -93,9 +88,6 @@ namespace ImageProcessor.Web.Processors
         /// <returns>
         /// The correct <see cref="T:System.Boolean"/> true or false.
         /// </returns>
-        private bool ParseCorner(NameValueCollection queryCollection, string key)
-        {
-            return queryCollection[key] == null || QueryParamParser.Instance.ParseValue<bool>(queryCollection[key]);
-        }
+        private bool ParseCorner(NameValueCollection queryCollection, string key) => queryCollection[key] == null || QueryParamParser.Instance.ParseValue<bool>(queryCollection[key]);
     }
 }

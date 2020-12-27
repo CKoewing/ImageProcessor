@@ -11,7 +11,6 @@
 
 namespace ImageProcessor.Web.Processors
 {
-    using System;
     using System.Collections.Specialized;
     using System.Drawing;
     using System.IO;
@@ -33,15 +32,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"mask=[\w+-]+." + ImageHelpers.ExtensionRegexPattern);
+        private static readonly Regex QueryRegex = new Regex(@"mask=[\w+-]+." + ImageHelpers.ExtensionRegexPattern, RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Mask"/> class.
         /// </summary>
-        public Mask()
-        {
-            this.Processor = new ImageProcessor.Processors.Mask();
-        }
+        public Mask() => this.Processor = new ImageProcessor.Processors.Mask();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -68,8 +64,8 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;
@@ -99,8 +95,7 @@ namespace ImageProcessor.Web.Processors
             Image image = null;
 
             // Correctly parse the path.
-            string path;
-            this.Processor.Settings.TryGetValue("VirtualPath", out path);
+            this.Processor.Settings.TryGetValue("VirtualPath", out string path);
 
             if (!string.IsNullOrWhiteSpace(path) && path.StartsWith("~/"))
             {
@@ -110,7 +105,7 @@ namespace ImageProcessor.Web.Processors
                     imagePath = Path.Combine(imagePath, input);
                     try
                     {
-                        using (ImageFactory factory = new ImageFactory())
+                        using (var factory = new ImageFactory())
                         {
                             factory.Load(imagePath);
                             image = new Bitmap(factory.Image);

@@ -78,76 +78,37 @@ namespace ImageProcessor.Imaging.Colors
         /// The combined color components.
         /// </param>
         public Color32(int argb)
-            : this()
-        {
-            this.Argb = argb;
-        }
+            : this() => this.Argb = argb;
 
         /// <summary>
         /// Gets the color for this Color32 object
         /// </summary>
-        public Color Color
-        {
-            get { return Color.FromArgb(this.A, this.R, this.G, this.B); }
-        }
+        public Color Color => Color.FromArgb(this.A, this.R, this.G, this.B);
 
         /// <summary>
-        /// Indicates whether this instance and a specified object are equal.
+        /// Determines whether the specified <see cref="System.Object" />, is equal to this instance.
         /// </summary>
+        /// <param name="obj">The <see cref="System.Object" /> to compare with this instance.</param>
         /// <returns>
-        /// true if <paramref name="obj"/> and this instance are the same type and represent the same value; otherwise, false.
+        ///   <c>true</c> if the specified <see cref="System.Object" /> is equal to this instance; otherwise, <c>false</c>.
         /// </returns>
-        /// <param name="obj">Another object to compare to. </param>
-        public override bool Equals(object obj)
-        {
-            if (obj is Color32)
-            {
-                return this.Equals((Color32)obj);
-            }
-
-            return false;
-        }
+        public override bool Equals(object obj) => obj is Color32 color32 && this.Equals(color32);
 
         /// <summary>
         /// Indicates whether the current object is equal to another object of the same type.
         /// </summary>
         /// <param name="other">An object to compare with this object.</param>
-        /// <returns>true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.</returns>
-        public bool Equals(Color32 other)
-        {
-            return this.Argb.Equals(other.Argb);
-        }
+        /// <returns>
+        /// true if the current object is equal to the <paramref name="other" /> parameter; otherwise, false.
+        /// </returns>
+        public bool Equals(Color32 other) => this.Argb == other.Argb;
 
         /// <summary>
-        /// Returns the hash code for this instance.
+        /// Returns a hash code for this instance.
         /// </summary>
         /// <returns>
-        /// A 32-bit signed integer that is the hash code for this instance.
+        /// A hash code for this instance, suitable for use in hashing algorithms and data structures like a hash table. 
         /// </returns>
-        public override int GetHashCode()
-        {
-            return this.GetHashCode(this);
-        }
-
-        /// <summary>
-        /// Returns the hash code for the given instance.
-        /// </summary>
-        /// <param name="obj">
-        /// The instance of <see cref="Color32"/> to return the hash code for.
-        /// </param>
-        /// <returns>
-        /// A 32-bit signed integer that is the hash code for this instance.
-        /// </returns>
-        private int GetHashCode(Color32 obj)
-        {
-            unchecked
-            {
-                int hashCode = obj.B.GetHashCode();
-                hashCode = (hashCode * 397) ^ obj.G.GetHashCode();
-                hashCode = (hashCode * 397) ^ obj.R.GetHashCode();
-                hashCode = (hashCode * 397) ^ obj.A.GetHashCode();
-                return hashCode;
-            }
-        }
+        public override int GetHashCode() => this.Argb.GetHashCode();
     }
 }

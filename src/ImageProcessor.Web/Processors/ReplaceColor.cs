@@ -28,15 +28,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"replace=[^&]", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex("replace=[^&]", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ReplaceColor"/> class.
         /// </summary>
-        public ReplaceColor()
-        {
-            this.Processor = new ImageProcessor.Processors.ReplaceColor();
-        }
+        public ReplaceColor() => this.Processor = new ImageProcessor.Processors.ReplaceColor();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -63,8 +60,8 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;

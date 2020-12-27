@@ -28,15 +28,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"\b(?!\W+)sharpen\b[=]", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex(@"\b(?!\W+)sharpen\b[=]", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GaussianSharpen"/> class.
         /// </summary>
-        public GaussianSharpen()
-        {
-            this.Processor = new ImageProcessor.Processors.GaussianSharpen();
-        }
+        public GaussianSharpen() => this.Processor = new ImageProcessor.Processors.GaussianSharpen();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -65,18 +62,15 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
+
             Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;
 
-                int maxSize;
-                double maxSigma;
-                int maxThreshold;
-
-                int.TryParse(this.Processor.Settings["MaxSize"], NumberStyles.Any, CultureInfo.InvariantCulture, out maxSize);
-                double.TryParse(this.Processor.Settings["MaxSigma"], NumberStyles.Any, CultureInfo.InvariantCulture, out maxSigma);
-                int.TryParse(this.Processor.Settings["MaxThreshold"], NumberStyles.Any, CultureInfo.InvariantCulture, out maxThreshold);
+                int.TryParse(this.Processor.Settings["MaxSize"], NumberStyles.Any, CultureInfo.InvariantCulture, out int maxSize);
+                double.TryParse(this.Processor.Settings["MaxSigma"], NumberStyles.Any, CultureInfo.InvariantCulture, out double maxSigma);
+                int.TryParse(this.Processor.Settings["MaxThreshold"], NumberStyles.Any, CultureInfo.InvariantCulture, out int maxThreshold);
 
                 NameValueCollection queryCollection = HttpUtility.ParseQueryString(queryString);
                 int size = QueryParamParser.Instance.ParseValue<int>(queryCollection["sharpen"]);

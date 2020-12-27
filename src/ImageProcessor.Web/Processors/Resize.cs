@@ -31,15 +31,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"(width|height)=((.)?\d+|\d+(.\d+)?)+(px)?", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex(@"(width|height)=((.)?\d+|\d+(.\d+)?)+(px)?", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Resize"/> class.
         /// </summary>
-        public Resize()
-        {
-            this.Processor = new ImageProcessor.Processors.Resize();
-        }
+        public Resize() => this.Processor = new ImageProcessor.Processors.Resize();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -68,8 +65,8 @@ namespace ImageProcessor.Web.Processors
         public int MatchRegexIndex(string queryString)
         {
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;
@@ -78,27 +75,27 @@ namespace ImageProcessor.Web.Processors
                 ResizeMode mode = QueryParamParser.Instance.ParseValue<ResizeMode>(queryCollection["mode"]);
                 AnchorPosition position = QueryParamParser.Instance.ParseValue<AnchorPosition>(queryCollection["anchor"]);
                 bool upscale = queryCollection["upscale"] == null || QueryParamParser.Instance.ParseValue<bool>(queryCollection["upscale"]);
-                float[] center = queryCollection["center"] != null
-                                    ? QueryParamParser.Instance.ParseValue<float[]>(queryCollection["center"]) :
-                                    new float[] { };
+                PointF? center = QueryParamParser.Instance.ParseValue<PointF?>(queryCollection["center"]);
+                if (center.HasValue)
+                {
+                    // Swap X/Y for backwards compatibility
+                    center = new PointF(center.Value.Y, center.Value.X);
+                }
 
-                ResizeLayer resizeLayer = new ResizeLayer(size)
+                this.Processor.DynamicParameter = new ResizeLayer(size)
                 {
                     ResizeMode = mode,
                     AnchorPosition = position,
                     Upscale = upscale,
-                    CenterCoordinates = center
+                    Center = center
                 };
 
-                this.Processor.DynamicParameter = resizeLayer;
-
                 // Correctly parse any restrictions.
-                string restrictions;
-                this.Processor.Settings.TryGetValue("RestrictTo", out restrictions);
+                this.Processor.Settings.TryGetValue("RestrictTo", out string restrictions);
 
                 List<Size> restrictedSizes = this.ParseRestrictions(restrictions);
 
-                if (restrictedSizes != null && restrictedSizes.Any())
+                if (restrictedSizes?.Count > 0)
                 {
                     bool reject = true;
                     foreach (Size restrictedSize in restrictedSizes)
@@ -143,7 +140,7 @@ namespace ImageProcessor.Web.Processors
             string height = queryCollection["height"];
             string widthRatio = queryCollection["widthratio"];
             string heightRatio = queryCollection["heightratio"];
-            Size size = new Size();
+            var size = new Size();
 
             // Umbraco calls the API incorrectly so we have to deal with floats.
             // We round up so that single pixel lines are not produced.
@@ -202,7 +199,7 @@ namespace ImageProcessor.Web.Processors
         /// </returns>
         private List<Size> ParseRestrictions(string input)
         {
-            List<Size> sizes = new List<Size>();
+            var sizes = new List<Size>();
 
             if (!string.IsNullOrWhiteSpace(input))
             {

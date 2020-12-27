@@ -25,15 +25,12 @@ namespace ImageProcessor.Web.Processors
         /// <summary>
         /// The regular expression to search strings for.
         /// </summary>
-        private static readonly Regex QueryRegex = new Regex(@"entropycrop(=)?[^&]*", RegexOptions.Compiled);
+        private static readonly Regex QueryRegex = new Regex("entropycrop(=)?[^&]*", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EntropyCrop"/> class.
         /// </summary>
-        public EntropyCrop()
-        {
-            this.Processor = new ImageProcessor.Processors.EntropyCrop();
-        }
+        public EntropyCrop() => this.Processor = new ImageProcessor.Processors.EntropyCrop();
 
         /// <summary>
         /// Gets the regular expression to search strings for.
@@ -61,8 +58,8 @@ namespace ImageProcessor.Web.Processors
         {
             // Set the sort order to max to allow filtering.
             this.SortOrder = int.MaxValue;
-            Match match = this.RegexPattern.Match(queryString);
 
+            Match match = this.RegexPattern.Match(queryString);
             if (match.Success)
             {
                 this.SortOrder = match.Index;

@@ -19,9 +19,11 @@ namespace ImageProcessor.Web.Plugins.PostProcessor
     using ImageProcessor.Configuration;
 
     /// <summary>
-    /// The postprocessor bootstrapper.
-    /// Many thanks to Azure Image Optimizer <see href="https://github.com/ligershark/AzureJobs"/>
+    /// The post processor bootstrapper.
     /// </summary>
+    /// <remarks>
+    /// Many thanks to Azure Image Optimizer <see href="https://github.com/ligershark/AzureJobs" />.
+    /// </remarks>
     internal sealed class PostProcessorBootstrapper
     {
         /// <summary>
@@ -65,7 +67,7 @@ namespace ImageProcessor.Web.Plugins.PostProcessor
         /// <summary>
         /// Gets the allowed time in milliseconds for postprocessing an image file.
         /// </summary>
-        public int Timout { get; internal set; } = 5000;
+        public int Timeout { get; internal set; } = 5000;
 
         /// <summary>
         /// Registers the embedded executables.
@@ -73,8 +75,8 @@ namespace ImageProcessor.Web.Plugins.PostProcessor
         public void RegisterExecutables()
         {
             // None of the tools used here are called using dllimport so we don't go through the normal registration channel.
-            string folder = ImageProcessorBootstrapper.Instance.NativeBinaryFactory.Is64BitEnvironment ? "x64" : "x86";
-            Assembly assembly = Assembly.GetExecutingAssembly();
+            var folder = ImageProcessorBootstrapper.Instance.NativeBinaryFactory.Is64BitEnvironment ? "x64" : "x86";
+            var assembly = Assembly.GetExecutingAssembly();
 
             if (assembly.Location == null)
             {
@@ -89,7 +91,7 @@ namespace ImageProcessor.Web.Plugins.PostProcessor
                 Path.Combine(new Uri(assembly.Location).LocalPath,
                     "..\\imageprocessor.postprocessor" + AssemblyVersion + "\\"));
 
-            string path = Path.GetDirectoryName(this.WorkingPath);
+            var path = Path.GetDirectoryName(this.WorkingPath);
 
             if (string.IsNullOrWhiteSpace(path))
             {
@@ -123,26 +125,23 @@ namespace ImageProcessor.Web.Plugins.PostProcessor
             }
 
             // Get the resources and copy them across.
-            Dictionary<string, string> resources = new Dictionary<string, string>
+            var resources = new Dictionary<string, string>
             {
                 { "gifsicle.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged." + folder + ".gifsicle.exe" },
                 { "jpegtran.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.jpegtran.exe" },
                 { "cjpeg.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.cjpeg.exe" },
                 { "libjpeg-62.dll", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.libjpeg-62.dll" },
-                { "pngquant.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.pngquant.exe" },
-                { "pngout.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.pngout.exe" },
-                { "TruePNG.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.TruePNG.exe" },
-                { "png.cmd", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x86.png.cmd" }
+                { "pingo.exe", "ImageProcessor.Web.Plugins.PostProcessor.Resources.Unmanaged.x64.pingo.exe" }
             };
 
             // Write the files out to the bin folder.
-            foreach (KeyValuePair<string, string> resource in resources)
+            foreach (var resource in resources)
             {
-                using (Stream resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource.Value))
+                using (var resourceStream = Assembly.GetExecutingAssembly().GetManifestResourceStream(resource.Value))
                 {
                     if (resourceStream != null)
                     {
-                        using (FileStream fileStream = File.OpenWrite(Path.Combine(this.WorkingPath, resource.Key)))
+                        using (var fileStream = File.OpenWrite(Path.Combine(this.WorkingPath, resource.Key)))
                         {
                             resourceStream.CopyTo(fileStream);
                         }

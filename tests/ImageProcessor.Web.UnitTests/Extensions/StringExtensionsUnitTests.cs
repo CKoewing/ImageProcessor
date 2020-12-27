@@ -10,9 +10,7 @@
 
 namespace ImageProcessor.Web.UnitTests.Extensions
 {
-    using System;
     using System.Collections.Generic;
-
     using ImageProcessor.Web.Extensions;
     using NUnit.Framework;
 
@@ -95,7 +93,7 @@ namespace ImageProcessor.Web.UnitTests.Extensions
         public void TestToMd5Fingerprint(string input, string expected)
         {
             string result = input.ToMD5Fingerprint();
-            bool comparison = result.Equals(expected, StringComparison.InvariantCultureIgnoreCase);
+            bool comparison = result.Equals(expected);
             Assert.True(comparison);
         }
 
@@ -112,7 +110,7 @@ namespace ImageProcessor.Web.UnitTests.Extensions
         public void TestToSHA1Fingerprint(string input, string expected)
         {
             string result = input.ToSHA1Fingerprint();
-            bool comparison = result.Equals(expected, StringComparison.InvariantCultureIgnoreCase);
+            bool comparison = result.Equals(expected);
             Assert.True(comparison);
         }
 
@@ -131,7 +129,7 @@ namespace ImageProcessor.Web.UnitTests.Extensions
         [TestCase(".", true)]
         [TestCase("_", true)]
         [TestCase("~", true)]
-        [TestCase(":", true)]
+        // [TestCase(":", true)]
         [TestCase("/", true)]
         [TestCase("?", true)]
         [TestCase("#", false)]

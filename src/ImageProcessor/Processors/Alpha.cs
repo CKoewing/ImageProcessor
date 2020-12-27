@@ -25,10 +25,7 @@ namespace ImageProcessor.Processors
         /// <summary>
         /// Initializes a new instance of the <see cref="Alpha"/> class.
         /// </summary>
-        public Alpha()
-        {
-            this.Settings = new Dictionary<string, string>();
-        }
+        public Alpha() => this.Settings = new Dictionary<string, string>();
 
         /// <summary>
         /// Gets or sets the dynamic parameter.
@@ -65,6 +62,7 @@ namespace ImageProcessor.Processors
             try
             {
                 int percentage = this.DynamicParameter;
+                factory.CurrentBitDepth = (long)BitDepth.Bit32;
                 return Adjustments.Alpha(image, percentage);
             }
             catch (Exception ex)

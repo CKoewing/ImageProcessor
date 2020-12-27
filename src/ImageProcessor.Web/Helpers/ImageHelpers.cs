@@ -66,35 +66,40 @@ namespace ImageProcessor.Web.Helpers
         /// <summary>
         /// The image format regex.
         /// </summary>
-        private static readonly Regex FormatRegex = new Regex(@"(\.?)(png8|" + ExtensionRegexPattern + ")", RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+        private static readonly Regex FormatRegex = new Regex(@"(\.?)(png8|" + ExtensionRegexPattern + ")", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
 
         /// <summary>
         /// The image format regex for matching the file format at the end of a string.
         /// </summary>
-        private static readonly Regex EndFormatRegex = new Regex(@"(\.)" + ExtensionRegexPattern + "$", RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
+        private static readonly Regex EndFormatRegex = new Regex(@"(\.)" + ExtensionRegexPattern + "$", RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase | RegexOptions.RightToLeft);
 
         /// <summary>
         /// Checks a given string to check whether the value contains a valid image extension.
         /// </summary>
         /// <param name="fileName">The string containing the filename to check.</param>
         /// <returns>True the value contains a valid image extension, otherwise false.</returns>
-        public static bool IsValidImageExtension(string fileName)
-        {
-            return EndFormatRegex.IsMatch(fileName);
-        }
+        public static bool IsValidImageExtension(string fileName) => EndFormatRegex.IsMatch(fileName);
 
         /// <summary>
-        /// Returns the correct file extension for the given string input.
-        /// <remarks>
-        /// Falls back to jpeg if no extension is matched.
-        /// </remarks>
+        /// Returns the correct file extension for the given string input. Falls back to <value>jpg</value> if no extension is matched.
         /// </summary>
         /// <param name="fullPath">The string to parse.</param>
         /// <param name="queryString">The querystring containing instructions.</param>
         /// <returns>
-        /// The correct file extension for the given string input if it can find one; otherwise an empty string.
+        /// The correct file extension for the given string input if it can find one; otherwise defaults to <value>jpg</value>.
         /// </returns>
-        public string GetExtension(string fullPath, string queryString)
+        public string GetExtension(string fullPath, string queryString) => this.GetExtension(fullPath, queryString, "jpg");
+
+        /// <summary>
+        /// Returns the correct file extension for the given string input.
+        /// </summary>
+        /// <param name="fullPath">The string to parse.</param>
+        /// <param name="queryString">The querystring containing instructions.</param>
+        /// <param name="defaultExtension">The default value to return.</param>
+        /// <returns>
+        /// The correct file extension for the given string input if it can find one; otherwise <paramref name="defaultExtension"/>.
+        /// </returns>
+        public string GetExtension(string fullPath, string queryString, string defaultExtension)
         {
             Match match = null;
 
@@ -103,7 +108,7 @@ namespace ImageProcessor.Web.Helpers
                 match = this.formatProcessor.RegexPattern.Match(queryString);
             }
 
-            if (match == null || !match.Success)
+            if (match?.Success != true)
             {
                 // Test against the path minus the querystring so any other
                 // processors don't interere.
@@ -127,7 +132,7 @@ namespace ImageProcessor.Web.Helpers
                 }
 
                 // Ah the enigma that is the png file.
-                if (value.ToLowerInvariant().EndsWith("png8"))
+                if (value.EndsWith("png8", StringComparison.OrdinalIgnoreCase))
                 {
                     return "png";
                 }
@@ -135,8 +140,7 @@ namespace ImageProcessor.Web.Helpers
                 return value;
             }
 
-            // Fall back to jpg
-            return "jpg";
+            return defaultExtension;
         }
 
         /// <summary>
@@ -175,27 +179,11 @@ namespace ImageProcessor.Web.Helpers
         /// </returns>
         private static string BuildExtensionRegexPattern()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append("(");
-            int counter = 0;
-            foreach (ISupportedImageFormat imageFormat in ImageProcessorBootstrapper.Instance.SupportedImageFormats)
-            {
-                foreach (string fileExtension in imageFormat.FileExtensions)
-                {
-                    if (counter == 0)
-                    {
-                        stringBuilder.Append(fileExtension.ToLowerInvariant());
-                    }
-                    else
-                    {
-                        stringBuilder.AppendFormat("|{0}", fileExtension.ToLowerInvariant());
-                    }
-                }
+            var stringBuilder = new StringBuilder();
+            stringBuilder.Append('(');
+            stringBuilder.Append(string.Join("|", ImageProcessorBootstrapper.Instance.SupportedImageFormats.SelectMany(f => f.FileExtensions).Select(Regex.Escape)));
+            stringBuilder.Append(')');
 
-                counter++;
-            }
-
-            stringBuilder.Append(")");
             return stringBuilder.ToString();
         }
     }
